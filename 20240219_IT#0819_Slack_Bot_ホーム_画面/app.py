@@ -60,11 +60,12 @@ def slack_events():
 def slack_interactive():
     return handler_flask.handle(request)
 
+
 # ホーム画面が開かれたイベントを処理するリスナーを定義
 @s_app.event("app_home_opened")
 def update_home_tab(client, event, logger):
     try:
-        # Block Kitで作成したUIのJSONを使用してホーム画面を更新
+
         client.views_publish(
             user_id=event["user"],
             view={
@@ -74,14 +75,65 @@ def update_home_tab(client, event, logger):
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": "Hello World2"
+                            "text": "Welcome to the registration form! Please enter your name:"
                         }
+                    },
+                    {
+                        "type": "input",
+                        "element": {
+                            "type": "plain_text_input",
+                            "action_id": "name_input",  # action_idはコールバックに使用されます
+                            "placeholder": {
+                                "type": "plain_text",
+                                "text": "Enter your name"
+                            }
+                        },
+                        "label": {
+                            "type": "plain_text",
+                            "text": "Name"
+                        }
+                    },
+                    {
+                        "type": "actions",
+                        "elements": [
+                            {
+                                "type": "button",
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Submit"
+                                },
+                                "value": "submit_btn",
+                                "action_id": "submit_action"  # action_idはコールバックに使用されます
+                            }
+                        ]
                     }
                 ]
             }
         )
     except Exception as e:
         logger.error(f"Error publishing home tab: {e}")
+
+# ボタンのアクションを処理するリスナーを定義
+@s_app.action("submit_action")
+def handle_submit_action(ack, body, client, view, logger):
+    # 最初にackを呼び出して、Slackに対してリクエストを受け取ったことを確認する応答を送信します。
+    ack()
+    try:
+        # action_idがsubmit_actionであるボタンが押されたときに送られるpayloadから、
+        # 入力された名前を取得します。この場合、inputブロックにblock_idを追加して、 そのblock_idを使って値を取得します。
+        action = body['actions'][0]
+        if action['action_id'] == 'submit_action':
+            # ユーザーが入力した名前を取得するために、inputブロックのblock_idを使用します。
+            user_name = body['user']['username']
+            user_id = body['user']['id']
+
+            # ユーザーに応答メッセージを送信
+            client.chat_postMessage(
+                channel=user_id,
+                text=f"Thank you for registering, <@{user_id}>!"
+            )
+    except Exception as e:
+        logger.error(f"Error sending message: {e}")
 
 # __name__はPythonにおいて特別な意味を持つ変数です。
 # 具体的にはスクリプトの名前を値として保持します。
